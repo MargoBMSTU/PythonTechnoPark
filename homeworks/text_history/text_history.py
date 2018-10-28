@@ -58,6 +58,25 @@ class TextHistory:
                 continue
             elif action.to_version > to_version:
                 break
+            if len(result) > 0:
+                last = result.pop()
+                if (last.__class__ == action.__class__):
+                        # Случай подряд идущих insert'ов
+                    if (last.__class__ == InsertAction and last.pos + len(last.text) == action.pos):
+                        act = InsertAction(last.pos, last.text + action.text, last.from_version, action.to_version)
+                        action = act
+                        # Случай пересекающихся replace'ов
+                    elif (last.__class__ == ReplaceAction and last.pos + len(last.text) >= action.pos):
+                        resulting_text = last.text[:action.pos - last.pos] + action.text + last.text[(action.pos - last.pos+len(action.text)):]
+                        act = ReplaceAction(last.pos, resulting_text, last.from_version, action.to_version)
+                        action = act
+                        #случай последовательных delete'ов
+                    elif (last.__class__ == DeleteAction and last.pos == action.pos):
+                        act = DeleteAction(last.pos, last.length + action.length, last.from_version, action.to_version)
+                        action = act
+                else:
+                    result.append(last)
+
             result.append(action)
         return result
 
@@ -109,13 +128,29 @@ class DeleteAction(Action):
         return gettext
 
 
-# h = TextHistory()
-# h.insert("abc")
-# print(h.version)
-# #h.replace("kkkkk", 2)
-# #h.delete(2,10)
-# #h.insert("kek",2)
+h = TextHistory()
+#Эквивалентно одному insert("xyzc",0)
+h.insert("x",0)
+h.insert("y",1)
+h.insert("z",2)
+h.insert("c",3)
+result = h.get_actions()
+print("get_actions len: %d,\n0 elem.text: %s\n" % (len(result) , result[0].text))
 
-# i = InsertAction(0,"kehgyygygy",1,69)
-# h.action(i)
-# print(h.text,h.version,h.actions)
+h = TextHistory()
+h.insert("AAAAAAAAAAAA")
+#Эквивалентно одному replace("BoB",2)
+h.replace("BBB",2)
+h.replace("o",3)
+result = h.get_actions()
+print("get_actions len: %d,\n1 elem.text: %s\n" % (len(result) , result[1].text))
+
+
+h = TextHistory()
+h.insert("qwertyuiop")
+#Эквивалентно одному delete(1,5)
+h.delete(1,2)
+h.delete(1,3)
+result = h.get_actions()
+print("get_actions len: %d,\n1 elem.length: %s\n" % (len(result) , result[1].length))
+print(h.text)
